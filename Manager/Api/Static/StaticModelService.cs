@@ -1,4 +1,4 @@
-namespace Siian_Office_V2.Manager.Api.Static;
+namespace DynamicApi.Manager.Api.Static;
 
 public abstract class StaticModelService<T> where T : class {
 

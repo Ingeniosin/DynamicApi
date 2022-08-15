@@ -1,4 +1,4 @@
-namespace Siian_Office_V2.Manager.Api;
+namespace DynamicApi.Manager.Api;
 
 public interface IApiManager{
     
