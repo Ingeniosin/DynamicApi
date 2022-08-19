@@ -1,6 +1,9 @@
 using DynamicApi.Manager;
 using DynamicApi.Manager.Api;
 using DynamicApi.Manager.Api.Grouped;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.HttpSys;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Newtonsoft.Json;
@@ -70,6 +73,27 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         
         _webApplicationBuilder.Services.AddControllersWithViews();
         
+        _webApplicationBuilder.Services.Configure<FormOptions>(x => {
+            x.ValueLengthLimit = int.MaxValue;
+            x.MultipartBodyLengthLimit = int.MaxValue;
+            x.MultipartHeadersLengthLimit = int.MaxValue;
+        });
+        
+        _webApplicationBuilder.Services.Configure<HttpSysOptions>(x => {
+            x.MaxRequestBodySize = null;
+        });
+        
+        _webApplicationBuilder.Services.Configure<KestrelServerOptions>(options =>
+        {
+            options.Limits.MaxRequestBodySize =  int.MaxValue;
+        });
+        
+        _webApplicationBuilder.Services.Configure<IISServerOptions>(options =>
+        {
+            options.MaxRequestBodySize = int.MaxValue;
+        });
+        
+
         _webApplicationBuilder.Services.AddDbContext<TDbContext>(x => {
             x.UseLazyLoadingProxies().UseNpgsql(_webApplicationBuilder.Configuration.GetConnectionString("DefaultConnection"));
             x.ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.DetachedLazyLoadingWarning));
@@ -114,6 +138,10 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         Console.WriteLine($"¡Rutas creadas correctamente!");
         _onPreStart?.Invoke(app);
         Console.WriteLine($"¡Servidor iniciado correctamente en {DateTime.Now.Subtract(_initTime).TotalSeconds} segundos!");
+        /*app.Run(context => {
+            context.Features.Get<IHttpMaxRequestBodySizeFeature>()!.MaxRequestBodySize = 100_000_000;
+            return Task.CompletedTask;
+        });*/
         app.Run();
         return app;
     }

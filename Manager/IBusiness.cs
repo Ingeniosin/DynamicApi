@@ -1,14 +1,14 @@
-namespace Siian_Office_V2.Manager;
+namespace DynamicApi.Manager;
 
 public interface IBusiness<T> where T : class{
 
     public bool IsValid(T obj);
 
-    public Task OnCreating(T obj);
-    public Task OnCreated(T obj);
+    public Task<T> OnCreating(T obj);
+    public Task<T> OnCreated(T obj);
     
     public Task OnUpdating(T obj, T prevObj);
-    public Task OnUpdated(T obj, T prevObj);
+    public Task<T> OnUpdated(T obj, T prevObj);
     
     public Task OnDeleting(T obj);
     public Task OnDeleted(T obj);

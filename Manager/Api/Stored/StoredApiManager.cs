@@ -41,10 +41,20 @@ public class StoredApiManager<T, TService, TDbContext> : IApiManager where T : c
                 var validationResults = newInstance.Validate();
                 if (validationResults.Any()) throw new CustomValidationException(validationResults);
                 
-                await service.OnCreating(newInstance);
+                await service.OnCreating(newInstance, httpContext);
                 var addedEntity = await dbSet.AddAsync(newInstance);
                 await db.SaveChangesAsync();
-                await service.OnCreated(addedEntity.Entity);
+                try {
+                    var onCreated = await service.OnCreated(addedEntity.Entity, httpContext);
+                    if(onCreated != null) {
+                        dbSet.Update(addedEntity.Entity);
+                        await db.SaveChangesAsync();
+                    }
+                } catch (Exception e){ 
+                    dbSet.Remove(addedEntity.Entity);
+                    await db.SaveChangesAsync();
+                    throw;
+                }
                 return addedEntity.Entity;
             });
         });
@@ -65,7 +75,19 @@ public class StoredApiManager<T, TService, TDbContext> : IApiManager where T : c
                 
                 await service.OnUpdating(instance, prevObj);
                 await db.SaveChangesAsync();
-                await service.OnUpdated(instance, prevObj);
+
+                try {
+                    var onUpdated = await service.OnUpdated(instance, prevObj);
+                    if(onUpdated != null) {
+                        dbSet.Update(onUpdated);
+                        await db.SaveChangesAsync();
+                    }
+                } catch (Exception e){
+                    db.Entry(instance).CurrentValues.SetValues(prevObj);
+                    await db.SaveChangesAsync();
+                    throw;
+                }
+
                 return instance;
             });
         });
@@ -80,7 +102,13 @@ public class StoredApiManager<T, TService, TDbContext> : IApiManager where T : c
                 await service.OnDeleting(instance);
                 dbSet.Remove(instance);
                 await db.SaveChangesAsync();
-                await service.OnDeleted(instance);
+                try {
+                    await service.OnDeleted(instance);
+                } catch (Exception e){
+                    dbSet.Add(instance);
+                    await db.SaveChangesAsync();
+                    throw;
+                }
                 return instance;
             });
         });
