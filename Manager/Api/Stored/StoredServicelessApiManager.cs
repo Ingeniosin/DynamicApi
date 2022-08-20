@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using DevExtreme.AspNet.Data;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using Siian_Office_V2.Manager;
 
 namespace DynamicApi.Manager.Api.Stored;
 

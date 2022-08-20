@@ -1,10 +1,7 @@
-using Siian_Office_V2.Manager;
-
 namespace DynamicApi.Manager.Api.Stored;
 
 public  class StoredModelService<T> : IBusiness<T> where T : class{
     
-   
     public  static StoredModelService<T> Get<T>() where T : class => new();
 
     public  virtual bool IsValid(T obj) => true;
