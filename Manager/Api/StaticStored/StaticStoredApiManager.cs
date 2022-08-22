@@ -32,10 +32,6 @@ public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticS
                 var newInstance = _createModel();
                 var values = httpContext.Request.Form["values"];
                 JsonConvert.PopulateObject(values, newInstance);
-                
-                var validationResults = newInstance.Validate();
-                if (validationResults.Any()) throw new CustomValidationException(validationResults);
-                
                 await service.OnPost(newInstance, httpContext);
                 return newInstance;
             });
@@ -51,10 +47,6 @@ public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticS
                 var prevObj = _createModel();
                 JsonConvert.PopulateObject(JsonConvert.SerializeObject(instance), prevObj);
                 JsonConvert.PopulateObject(values, instance);
-                
-                var validationResults = instance.Validate();
-                if (validationResults.Any()) throw new CustomValidationException(validationResults);
-                
                 await service.OnPut(instance, prevObj, httpContext);
                 _modelCache[key] = instance;
                 return instance;
@@ -76,4 +68,5 @@ public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticS
     }
 
     public Type GetServiceType() => typeof(TService);
+    public bool IsScoped { get; set; }
 }

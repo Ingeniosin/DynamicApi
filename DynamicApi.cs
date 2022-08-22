@@ -52,22 +52,36 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
             var isGrouped = x is GroupedStaticApiManager;
             if(!isGrouped){
                 var serviceType = x.GetServiceType();
-                if(serviceType != null)
-                    _webApplicationBuilder.Services.AddScoped(serviceType);
+                if(serviceType != null) {
+                    if(x.IsScoped) {
+                        _webApplicationBuilder.Services.AddScoped(serviceType);
+                    } else {
+                        _webApplicationBuilder.Services.AddSingleton(serviceType);
+                    }
+                }
             } else{
                 var groupedStaticApiManager = (GroupedStaticApiManager)x;
-                groupedStaticApiManager.GetServiceTypes().ToList().ForEach(y => _webApplicationBuilder.Services.AddScoped(y));
+                groupedStaticApiManager.ApiManagers.Where(y => y.GetServiceType() != null).ToList().ForEach(y => {
+                    if(y.IsScoped) {
+                        _webApplicationBuilder.Services.AddScoped(y.GetServiceType());
+                    } else {
+                        _webApplicationBuilder.Services.AddSingleton(y.GetServiceType());
+                    }
+                });
             }
         });
         
-        JsonConvert.DefaultSettings = () => new JsonSerializerSettings{
-            Formatting = Formatting.Indented,
-            ContractResolver = new CustomContractResolver(),
-            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-            Converters = new List<JsonConverter>{
-                new StringEnumConverter(),
-                new ExpandoObjectConverter(),
-            },
+        JsonConvert.DefaultSettings = () => {
+            var expandoObjectConverter = new ExpandoObjectConverter();
+            return new JsonSerializerSettings{
+                Formatting = Formatting.Indented,
+                ContractResolver = new CustomContractResolver(),
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+                Converters = new List<JsonConverter>{
+                    new StringEnumConverter(),
+                    expandoObjectConverter,
+                },
+            };
         };
 
         
@@ -97,9 +111,6 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         _webApplicationBuilder.Services.AddDbContext<TDbContext>(x => {
             x.UseLazyLoadingProxies().UseNpgsql(_webApplicationBuilder.Configuration.GetConnectionString("DefaultConnection"));
             x.ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.DetachedLazyLoadingWarning));
-            /*
-            x.LogTo(Console.WriteLine);
-        */
         });
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -138,10 +149,6 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         Console.WriteLine($"¡Rutas creadas correctamente!");
         _onPreStart?.Invoke(app);
         Console.WriteLine($"¡Servidor iniciado correctamente en {DateTime.Now.Subtract(_initTime).TotalSeconds} segundos!");
-        /*app.Run(context => {
-            context.Features.Get<IHttpMaxRequestBodySizeFeature>()!.MaxRequestBodySize = 100_000_000;
-            return Task.CompletedTask;
-        });*/
         app.Run();
         return app;
     }

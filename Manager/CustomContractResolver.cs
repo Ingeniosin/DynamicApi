@@ -14,7 +14,7 @@ public class CustomContractResolver : DefaultContractResolver{
 
         var attributes = property?.AttributeProvider?.GetAttributes(true);
 
-        if(attributes?.Contains(new JsonShow()) == true) return property;
+        if( property?.PropertyName?.ToLower().Equals("id") == true || attributes?.Contains(new JsonShow()) == true) return property;
         dynamic method = member.GetType().GetProperty("GetMethod")?.GetValue(member);
         var isVirtual = method?.IsVirtual == true;
 

@@ -8,7 +8,7 @@ public static class ApiUtils{
     public static async Task<IResult> Result(Func<Task<object>> action){
         var start = DateTime.Now;
         try{
-            var result = Results.Text(JsonConvert.SerializeObject(await action(), Formatting.Indented), contentType: "application/json");
+            var result = Results.Text(JsonConvert.SerializeObject(await action.Invoke(), Formatting.Indented), contentType: "application/json");
             Console.WriteLine("Successful request in {0}ms", (DateTime.Now - start).TotalMilliseconds);
             return result;
         } catch (CustomValidationException e){

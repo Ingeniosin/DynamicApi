@@ -7,4 +7,6 @@ public interface IApiManager{
     public void Init(WebApplication app);
     
     public Type GetServiceType();
+
+    public bool IsScoped { get; set; }
 }

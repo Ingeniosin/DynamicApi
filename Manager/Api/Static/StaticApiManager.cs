@@ -28,4 +28,5 @@ public class StaticApiManager<TIn, TService> : IApiManager where TIn : class whe
     }
 
     public Type GetServiceType() => typeof(TService);
+    public bool IsScoped { get; set; }
 }
