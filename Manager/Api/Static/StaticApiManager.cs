@@ -17,8 +17,8 @@ public class StaticApiManager<TIn, TService> : IApiManager where TIn : class whe
                 var newInstance = service.GetInstance();
                 JsonConvert.PopulateObject(values, newInstance);
                 
-                var validationResults = newInstance.Validate();
-                if (validationResults.Any()) throw new CustomValidationException(validationResults);
+                /*var validationResults = newInstance.Validate();
+                if (validationResults.Any()) throw new CustomValidationException(validationResults);*/
                 
                 return await service.OnQuery(newInstance, httpContext);
             });

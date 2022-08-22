@@ -33,7 +33,7 @@ public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticS
                 var values = httpContext.Request.Form["values"];
                 JsonConvert.PopulateObject(values, newInstance);
                 await service.OnPost(newInstance, httpContext);
-                return newInstance;
+                return true;
             });
         });
         
@@ -49,7 +49,7 @@ public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticS
                 JsonConvert.PopulateObject(values, instance);
                 await service.OnPut(instance, prevObj, httpContext);
                 _modelCache[key] = instance;
-                return instance;
+                return true;
             });
         });
         
@@ -61,7 +61,7 @@ public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticS
                     throw new Exception("Serializable not found");
                 await service.OnDelete(instance, httpContext);
                 _modelCache.Remove(key);
-                return instance;
+                return true;
             });
         });
         
