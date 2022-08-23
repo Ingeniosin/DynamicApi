@@ -11,7 +11,7 @@ public abstract class ServiceModel<T> {
     public virtual Task OnUpdated(T model, T oldModel, Query query) => Task.CompletedTask;
     public virtual Task<bool> OnUpdating(T model, T oldModel, Query query) => Task.FromResult(true);
     
-    public virtual Task OnDeleted(T archivo, Query query) => Task.CompletedTask;
+    public virtual Task OnDeleted(T model, Query query) => Task.CompletedTask;
     public virtual Task<bool> OnDeleting(T model, Query query) => Task.FromResult(true);
 
 }
