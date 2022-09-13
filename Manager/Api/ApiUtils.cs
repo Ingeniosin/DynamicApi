@@ -1,14 +1,19 @@
 using System.ComponentModel.DataAnnotations;
 using System.Dynamic;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Serialization;
 
 namespace DynamicApi.Manager.Api;
 
 public static class ApiUtils{
-    public static async Task<IResult> Result(Func<Task<object>> action){
+    public static async Task<IResult> Result(Func<Task<object>> action, DefaultContractResolver customSettings = null){
         var start = DateTime.Now;
         try{
-            var result = Results.Text(JsonConvert.SerializeObject(await action.Invoke(), Formatting.Indented), contentType: "application/json");
+            var jsonSerializerSettings = JsonConvert.DefaultSettings!.Invoke();
+            jsonSerializerSettings.ContractResolver = customSettings ?? jsonSerializerSettings.ContractResolver;
+            var result = Results.Text(JsonConvert.SerializeObject(await action.Invoke(), jsonSerializerSettings), contentType: "application/json");
             Console.WriteLine("Successful request in {0}ms", (DateTime.Now - start).TotalMilliseconds);
             return result;
         } catch (CustomValidationException e){
@@ -25,6 +30,15 @@ public static class ApiUtils{
             }, contentType: "application/json", statusCode: 400);
         }   
     }
+    
+    /*
+    public static IQueryable<TSource> Include<TSource>(this IQueryable<TSource> queryable, params string[] navigations) where TSource : class
+    {
+        if (navigations == null || navigations.Length == 0) return queryable;
+
+        return navigations.Aggregate(queryable, EntityFrameworkQueryableExtensions.Include);  // EntityFrameworkQueryableExtensions.Include method requires the constraint where TSource : class
+    }
+    */
     
     public static List<ValidationError> Validate(this object obj){
         var context = new ValidationContext(obj);

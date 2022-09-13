@@ -25,7 +25,16 @@ public class ServicelessStoredApiManager<T, TDbContext> : IApiManager where T : 
 
         if(Configuration.AllowGetRute) {
             app.MapGet(Route, async (DataSourceLoadOptions dataSourceLoadOptions, TDbContext db) => {
-                return await ApiUtils.Result(async () => await DataSourceLoader.LoadAsync(DbSetReference(db), dataSourceLoadOptions));
+                var dbSetReference = DbSetReference(db).AsQueryable();
+                List<string> includes = null;
+                if(dataSourceLoadOptions.Select != null) {
+                    includes = (dataSourceLoadOptions.Select ?? Array.Empty<string>()).ToList();
+                    dbSetReference = includes.Aggregate(dbSetReference, (current, include) => current.Include(include));
+                }
+                return await ApiUtils.Result(async () => {
+                    dataSourceLoadOptions.Select = null;
+                    return await DataSourceLoader.LoadAsync(dbSetReference, dataSourceLoadOptions);
+                }, includes != null ? new CustomContractResolver(includes) : null);
             });
         }
 
@@ -35,7 +44,11 @@ public class ServicelessStoredApiManager<T, TDbContext> : IApiManager where T : 
                     var model = NewInstanceReference(db);
                     var dbSet = DbSetReference(db);
                     var values = context.Request.Form["values"];
-                    JsonConvert.PopulateObject(values, model);
+                    
+                    var jsonSerializerSettings = JsonConvert.DefaultSettings!.Invoke();
+                    jsonSerializerSettings.ContractResolver =  new CustomContractResolver(){IsPut = true};
+                    
+                    JsonConvert.PopulateObject(values, model, jsonSerializerSettings);
                     await dbSet.AddAsync(model);
                     await db.SaveChangesAsync();
                     return true;
@@ -50,9 +63,15 @@ public class ServicelessStoredApiManager<T, TDbContext> : IApiManager where T : 
                     var key = int.Parse(context.Request.Form["key"].ToString().Replace("\"", ""));
                     var values = context.Request.Form["values"];
                     var model = await dbSet.FindAsync(key);
+
                     if(model == null)
                         throw new Exception("Model not found.");
-                    JsonConvert.PopulateObject(values, model);
+
+                    var jsonSerializerSettings = JsonConvert.DefaultSettings!.Invoke();
+                    jsonSerializerSettings.ContractResolver =  new CustomContractResolver(){IsPut = true};
+                    
+                    JsonConvert.PopulateObject(values, model, jsonSerializerSettings);
+
                     db.Update(model);
                     await db.SaveChangesAsync();
                     return true;

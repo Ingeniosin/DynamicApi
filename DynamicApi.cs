@@ -80,6 +80,7 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
                 Converters = new List<JsonConverter>{
                     new StringEnumConverter(),
                     expandoObjectConverter,
+                   // new ObjectConverter(),
                 },
             };
         };
@@ -111,6 +112,7 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         _webApplicationBuilder.Services.AddDbContext<TDbContext>(x => {
             x.UseLazyLoadingProxies().UseNpgsql(_webApplicationBuilder.Configuration.GetConnectionString("DefaultConnection"));
             x.ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.DetachedLazyLoadingWarning));
+            x.LogTo(Console.WriteLine, new[] { RelationalEventId.CommandExecuted });
         });
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
