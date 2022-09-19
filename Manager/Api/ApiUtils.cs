@@ -1,19 +1,32 @@
 using System.ComponentModel.DataAnnotations;
-using System.Dynamic;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 
 namespace DynamicApi.Manager.Api;
 
-public static class ApiUtils{
-    public static async Task<IResult> Result(Func<Task<object>> action, DefaultContractResolver customSettings = null){
+public static class ApiUtils {
+
+    private static JsonSerializerSettings _postOrPutSettings;
+    public static JsonSerializerSettings PostOrPutSettings  {
+        get {
+            if(_postOrPutSettings != null) return _postOrPutSettings;
+            var jsonSerializerSettings = JsonConvert.DefaultSettings!.Invoke();
+            jsonSerializerSettings.ContractResolver =  new CustomContractResolver(){IsPut = true};
+            _postOrPutSettings = jsonSerializerSettings;
+            return _postOrPutSettings;
+        }
+    }
+
+    public static async Task<IResult> Result(Func<Task<object>> action, DefaultContractResolver resolver = null) {
+        var jsonSerializerSettings = JsonConvert.DefaultSettings!.Invoke();
+        jsonSerializerSettings.ContractResolver = resolver ?? new CustomContractResolver();
+        return await Result(action, jsonSerializerSettings);
+    }
+
+    public static async Task<IResult> Result(Func<Task<object>> action, JsonSerializerSettings customSettings){
         var start = DateTime.Now;
         try{
-            var jsonSerializerSettings = JsonConvert.DefaultSettings!.Invoke();
-            jsonSerializerSettings.ContractResolver = customSettings ?? jsonSerializerSettings.ContractResolver;
-            var result = Results.Text(JsonConvert.SerializeObject(await action.Invoke(), jsonSerializerSettings), contentType: "application/json");
+            var result = Results.Text(JsonConvert.SerializeObject(await action.Invoke(), customSettings ?? JsonConvert.DefaultSettings!.Invoke()), contentType: "application/json");
             Console.WriteLine("Successful request in {0}ms", (DateTime.Now - start).TotalMilliseconds);
             return result;
         } catch (CustomValidationException e){
@@ -30,23 +43,13 @@ public static class ApiUtils{
             }, contentType: "application/json", statusCode: 400);
         }   
     }
-    
-    /*
-    public static IQueryable<TSource> Include<TSource>(this IQueryable<TSource> queryable, params string[] navigations) where TSource : class
-    {
-        if (navigations == null || navigations.Length == 0) return queryable;
 
-        return navigations.Aggregate(queryable, EntityFrameworkQueryableExtensions.Include);  // EntityFrameworkQueryableExtensions.Include method requires the constraint where TSource : class
-    }
-    */
-    
     public static List<ValidationError> Validate(this object obj){
         var context = new ValidationContext(obj);
         var dateResults = new List<ValidationResult>();
         Validator.TryValidateObject(obj, context, dateResults, true);
         return dateResults.Select(x => new ValidationError(x.MemberNames.First(), x.ErrorMessage)).ToList();
     }
-    
 }
 
 public class CustomValidationException : Exception{

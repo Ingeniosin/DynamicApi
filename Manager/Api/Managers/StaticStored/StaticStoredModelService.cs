@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace DynamicApi.Manager.Api.StaticStored; 
+namespace DynamicApi.Manager.Api.Managers.StaticStored; 
 
 public abstract class StaticStoredModelService<T> {
 

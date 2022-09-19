@@ -1,9 +1,10 @@
-namespace DynamicApi.Manager.Api.Grouped;
+namespace DynamicApi.Manager.Api.Managers;
 
 public class GroupedStaticApiManager : IApiManager{
     
     public List<IApiManager> ApiManagers { get; set; }
     public string Route{ get; set; }
+    public bool IsService => false;
 
     public GroupedStaticApiManager(string route, List<IApiManager> apiManagers){
         Route = route;
@@ -17,7 +18,9 @@ public class GroupedStaticApiManager : IApiManager{
         });
     }
 
-    public Type GetServiceType() => throw new NotImplementedException();
+    public Type GetServiceType() => null;
+    public Type GetModelType() => null;
+
     public bool IsScoped { get; set; }
 
     public List<Type> GetServiceTypes(){

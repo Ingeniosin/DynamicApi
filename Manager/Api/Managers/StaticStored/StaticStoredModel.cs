@@ -1,4 +1,4 @@
-namespace DynamicApi.Manager.Api.StaticStored; 
+namespace DynamicApi.Manager.Api.Managers.StaticStored; 
 
 public abstract class StaticStoredModel {
     [JsonShow]

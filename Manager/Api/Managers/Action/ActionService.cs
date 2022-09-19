@@ -1,6 +1,6 @@
-namespace DynamicApi.Manager.Api.Static;
+namespace DynamicApi.Manager.Api.Managers.Action;
 
-public abstract class StaticModelService<T> where T : class {
+public abstract class ActionService<T> where T : class {
 
     public virtual Task<object> OnQuery(T model){
         return null;

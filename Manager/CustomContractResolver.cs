@@ -5,8 +5,8 @@ using Newtonsoft.Json.Serialization;
 namespace DynamicApi.Manager;
 
 public class CustomContractResolver : DefaultContractResolver{
-    
-    public readonly List<string> ShowProperties = new List<string>();
+
+    private readonly List<string> _showProperties = new();
     public bool IsPut = false;
     
     public CustomContractResolver(){
@@ -14,13 +14,11 @@ public class CustomContractResolver : DefaultContractResolver{
     }
 
     public CustomContractResolver(List<string> showProperties) {
-        ShowProperties = showProperties.Where(x => !x.Contains('.')).Select(x => x.ToLower()).ToList();
-        var stringsEnumerable = showProperties.Where(x => x.Contains('.')).Select(x => x.Split("."));
-        foreach (var list in stringsEnumerable) {
-            foreach (var field in list) {
-                ShowProperties.Add(field.ToLower());
+        showProperties?.ForEach(x => {
+            foreach (var s in x.Split(".")) {
+                _showProperties.Add(s.ToLower());
             }
-        }
+        });
         NamingStrategy = new CamelCaseNamingStrategy();
     }
 
@@ -35,7 +33,10 @@ public class CustomContractResolver : DefaultContractResolver{
         var nameLower = property?.PropertyName?.ToLower() ?? string.Empty;
         if(nameLower.Equals("id") || attributes?.Contains(new JsonShow()) == true) return property;
 
-        property.Readable =ShowProperties.Contains(nameLower) || attributes?.Contains(new JsonIgnoreGet()) == true || !IsVirtual(member); 
+        var containsShowProperties = _showProperties.Contains(nameLower);
+        /*if(containsShowProperties)
+            _showProperties.Remove(nameLower);*/
+        property.Readable =containsShowProperties || attributes?.Contains(new JsonIgnoreGet()) == true || !IsVirtual(member); 
 
         return property;
     }

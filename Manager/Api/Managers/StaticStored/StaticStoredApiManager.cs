@@ -2,10 +2,11 @@ using DevExtreme.AspNet.Data;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
-namespace DynamicApi.Manager.Api.StaticStored; 
+namespace DynamicApi.Manager.Api.Managers.StaticStored; 
 
 public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticStoredModel where TService : StaticStoredModelService<T>  {
 
+    public bool IsService => false;
     public string Route { get; set; }
     private readonly Func<T> _createModel = () => (T)Activator.CreateInstance(typeof(T));
     private readonly Dictionary<int, T> _modelCache = new();
@@ -68,5 +69,7 @@ public class StaticStoredApiManager<T, TService> : IApiManager where T : StaticS
     }
 
     public Type GetServiceType() => typeof(TService);
+    public Type GetModelType() => typeof(T);
+
     public bool IsScoped { get; set; }
 }

@@ -1,6 +1,6 @@
 using DynamicApi.Manager;
 using DynamicApi.Manager.Api;
-using DynamicApi.Manager.Api.Grouped;
+using DynamicApi.Manager.Api.Managers;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.HttpSys;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -25,21 +25,29 @@ coloca el conectionstring
 
 */
 
+public static class DynamicApi {
+    public static IServiceProvider ServiceProvider { get; set; }
+    public static List<IApiManager> Routes { get; set; }
+    public static Dictionary<string, IApiManager> RoutesByType { get; set; } = new();
+
+}
+
 public class DynamicApi<TDbContext> where TDbContext : DbContext{
 
-    private readonly List<IApiManager> _routes;
     private readonly WebApplicationBuilder _webApplicationBuilder;
     private readonly Action<TDbContext> _initDefaultValues;
     private readonly Action<WebApplication> _onPreStart;
     private DateTime _initTime;
+
 
     public DynamicApi(List<IApiManager> routes, WebApplicationBuilder webApplicationBuilder) : this(routes, webApplicationBuilder, null) { }
 
     
     public DynamicApi(List<IApiManager> routes, WebApplicationBuilder webApplicationBuilder, Action<TDbContext> initDefaultValues) : this(routes, webApplicationBuilder, initDefaultValues, null){}
     
+    
     public DynamicApi(List<IApiManager> routes, WebApplicationBuilder webApplicationBuilder, Action<TDbContext> initDefaultValues, Action<WebApplication> onPreStart){
-        _routes = routes;
+        DynamicApi.Routes = routes ?? new List<IApiManager>();
         _webApplicationBuilder = webApplicationBuilder;
         _initDefaultValues = initDefaultValues;
         _onPreStart = onPreStart;
@@ -48,16 +56,15 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
 
     private void Init(){
         _initTime = DateTime.Now;
-        _routes.ForEach(x => {
+        DynamicApi.Routes.ForEach(x => {
             var isGrouped = x is GroupedStaticApiManager;
             if(!isGrouped){
                 var serviceType = x.GetServiceType();
-                if(serviceType != null) {
-                    if(x.IsScoped) {
-                        _webApplicationBuilder.Services.AddScoped(serviceType);
-                    } else {
-                        _webApplicationBuilder.Services.AddSingleton(serviceType);
-                    }
+                if(serviceType == null) return;
+                if(x.IsScoped) {
+                    _webApplicationBuilder.Services.AddScoped(serviceType);
+                } else {
+                    _webApplicationBuilder.Services.AddSingleton(serviceType);
                 }
             } else{
                 var groupedStaticApiManager = (GroupedStaticApiManager)x;
@@ -70,19 +77,25 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
                 });
             }
         });
+
+        DynamicApi.RoutesByType = new Dictionary<string, IApiManager>();
+        DynamicApi.Routes.Where(x => x.GetModelType() != null && x.IsService).ToList().ForEach(x => {
+            DynamicApi.RoutesByType.Add(x.GetModelType()!.Name!, x);
+        });
         
-        JsonConvert.DefaultSettings = () => {
-            var expandoObjectConverter = new ExpandoObjectConverter();
-            return new JsonSerializerSettings{
-                Formatting = Formatting.Indented,
-                ContractResolver = new CustomContractResolver(),
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-                Converters = new List<JsonConverter>{
-                    new StringEnumConverter(),
-                    expandoObjectConverter,
-                   // new ObjectConverter(),
-                },
-            };
+        var expandoObjectConverter = new ExpandoObjectConverter();
+        var customContractResolver = new CustomContractResolver();
+        var stringEnumConverter = new StringEnumConverter();
+        var jsonConverters = new List<JsonConverter>{
+            stringEnumConverter,
+            expandoObjectConverter,
+        };
+        
+        JsonConvert.DefaultSettings = () => new JsonSerializerSettings{
+            Formatting = Formatting.None,
+            ContractResolver = customContractResolver,
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+            Converters = jsonConverters,
         };
 
         
@@ -138,6 +151,7 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
 
     public WebApplication Start(){
         var app = GetApp();
+        DynamicApi.ServiceProvider = app.Services;
         using var scope = app.Services.CreateScope();
         var applicationDbContext = scope.ServiceProvider.GetService<TDbContext>();
         if (applicationDbContext == null) throw new Exception("ApplicationDbContext is null");
@@ -145,7 +159,7 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         Console.WriteLine("Creando tablas...");
         applicationDbContext.Database.Migrate();
         Console.WriteLine("Tablas creadas correctamente");
-        _routes.ForEach(x => x.Init(app));
+        DynamicApi.Routes.ForEach(x => x.Init(app));
         _initDefaultValues?.Invoke(applicationDbContext);
         applicationDbContext.SaveChanges();
         Console.WriteLine($"¡Rutas creadas correctamente!");

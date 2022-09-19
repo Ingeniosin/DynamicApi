@@ -1,41 +1,35 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 
-namespace DynamicApi.Manager.Api.Static;
+namespace DynamicApi.Manager.Api.Managers.Action;
 
-public class StaticFileApiManager<TIn, TService> : IApiManager where TIn : class where TService  : StaticModelService<TIn> {
+public class ActionFileApiManager<TIn, TService> : IApiManager where TIn : class where TService  : ActionService<TIn> {
     public string Route{ get; set; }
+    public bool IsService => false;
 
-    public StaticFileApiManager(string route){
+    public ActionFileApiManager(string route){
         Route = "/api/"+route;
     }
 
     public void Init(WebApplication app){
         app.MapPost(Route, async (HttpContext httpContext, [FromServices] TService service) => {
-            
             var values = httpContext.Request.Form["values"];
             var newInstance = service.GetInstance();
-            JsonConvert.PopulateObject(values, newInstance);
-
+            JsonConvert.PopulateObject(values, newInstance, ApiUtils.PostOrPutSettings);
             var file = (FileInfo)await service.OnQuery(newInstance, httpContext);
-            
             if(!file.Exists)
                 throw new FileNotFoundException("File not found");
-            
             var stream = file.OpenRead();
-
             var fileName = file.Name;
             if(file.Name[3] == ' ') {
                 fileName = file.Name[4..];
             }
-            
             return Results.File(stream, "application/force-download", fileName, file.LastWriteTime);
         });
-        
-        Console.WriteLine("Auto created route: /"+Route);
     }
 
     public Type GetServiceType() => typeof(TService);
+    public Type GetModelType() => null;
+
     public bool IsScoped { get; set; }
 }
