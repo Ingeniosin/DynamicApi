@@ -1,6 +1,7 @@
 ﻿using DevExtreme.AspNet.Data;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using System;
 
 namespace DynamicApi.Manager.Api.Routes; 
 
@@ -20,10 +21,17 @@ public class NonServiceApiRoutes<T, TDbContext> where T : class where TDbContext
         var fields = dataSourceLoadOptions.Select?.ToList();
         dataSourceLoadOptions.StringToLower = true;
         if(fields == null) return await ApiUtils.Result(async () => await DataSourceLoader.LoadAsync(dbSetReference, dataSourceLoadOptions));
-        if(!fields.Contains("id")) 
+        var recursiveFields = fields.Where(x => x.StartsWith("-")).ToList();
+        if(fields.Contains("*")) {
+            var properties = typeof(T).GetProperties().Where(x =>  x?.GetGetMethod()?.IsVirtual != true).Select(x => string.Concat(x.Name[..1].ToLower(), x.Name.AsSpan(1)));
+            fields.AddRange(properties.ToList());
+            fields.Remove("*");
+        } else if(!fields.Contains("id")) {
             fields.Add("id");
+        }
+        fields.RemoveAll(x => recursiveFields.Contains(x));
         dataSourceLoadOptions.Select = fields.ToArray();
-        return await ApiUtils.Result(async () => await DataSourceLoader.LoadAsync(dbSetReference, dataSourceLoadOptions));
+        return await ApiUtils.Result(async () => await DataSourceLoader.LoadAsync(dbSetReference, dataSourceLoadOptions), new CustomContractResolver(recursiveFields.Select(x => x[1..]).ToList()));
     }
     
     public async Task<IResult> Post(HttpContext context, TDbContext db) {
@@ -47,7 +55,6 @@ public class NonServiceApiRoutes<T, TDbContext> where T : class where TDbContext
             if(model == null)
                 throw new Exception("Model not found.");
             JsonConvert.PopulateObject(values, model, ApiUtils.PostOrPutSettings);
-            dbSet.Update(model);
             await db.SaveChangesAsync();
             return true;
         });

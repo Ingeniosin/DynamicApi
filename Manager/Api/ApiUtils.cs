@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -50,6 +51,26 @@ public static class ApiUtils {
         Validator.TryValidateObject(obj, context, dateResults, true);
         return dateResults.Select(x => new ValidationError(x.MemberNames.First(), x.ErrorMessage)).ToList();
     }
+    
+    public static IQueryable<T> IncludeAll<T>(this IQueryable<T> queryable) where T : class {
+        var type = typeof(T);
+        var properties = type.GetProperties();
+        foreach (var property in properties) {
+            var isVirtual = property.GetGetMethod().IsVirtual;
+            if (isVirtual) {
+                queryable = queryable.Include(property.Name);
+            }
+        }
+        return queryable;
+    }
+    
+    public static Type Unproxy(Type type) {
+        if(type.Namespace == "Castle.Proxies") {
+            return type.BaseType;
+        }
+        return type;
+    }
+    
 }
 
 public class CustomValidationException : Exception{

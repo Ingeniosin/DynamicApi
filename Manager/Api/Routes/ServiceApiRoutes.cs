@@ -6,7 +6,7 @@ using Newtonsoft.Json;
 
 namespace DynamicApi.Manager.Api.Routes; 
 
-public class ServiceApiRoutes<T, TService, TDbContext> where T : class where TDbContext : DynamicDbContext where TService : ServiceModel<T>{
+public class ServiceApiRoutes<T, TService, TDbContext> where T : class where TDbContext : DynamicDbContext where TService : ServiceModel<T, TDbContext>{
     
     private readonly Func<TDbContext, DbSet<T>> _dbSetReference;
     private readonly Func<TDbContext, T> _newInstanceReference;
@@ -39,7 +39,7 @@ public class ServiceApiRoutes<T, TService, TDbContext> where T : class where TDb
             var loadResultData = loadResult.data as IEnumerable<T>;
             var query = new Query(dataSourceLoadOptions, context);
             foreach (var model in loadResultData!) {
-                await service.OnGet(model, query);
+                await service.OnGet(model, query, db);
                 dbSet.Update(model);
             }
             await db.SaveChangesAsync();
@@ -70,7 +70,6 @@ public class ServiceApiRoutes<T, TService, TDbContext> where T : class where TDb
                 throw new Exception("Model not found.");
             var query = new Query(null, context);
             JsonConvert.PopulateObject(values, model, ApiUtils.PostOrPutSettings);
-            dbSet.Update(model);
             await db.SaveChangesAsync(query);
             return true;
         });

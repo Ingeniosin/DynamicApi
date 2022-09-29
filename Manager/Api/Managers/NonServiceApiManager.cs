@@ -1,10 +1,11 @@
+using System.Reflection;
 using DynamicApi.Manager.Api.Managers.Service;
 using DynamicApi.Manager.Api.Routes;
 using Microsoft.EntityFrameworkCore;
 
 namespace DynamicApi.Manager.Api.Managers;
 
-public class NonServiceApiManager<T, TDbContext> : IApiManager where T : class where TDbContext : DynamicDbContext {
+public class NonServiceApiManager<T, TDbContext> : IApiManager, ITypeManager<TDbContext> where T : class where TDbContext : DynamicDbContext {
 
     public string Route { get; set; }
     private readonly ManagerConfiguration _configuration;
@@ -42,8 +43,24 @@ public class NonServiceApiManager<T, TDbContext> : IApiManager where T : class w
         }
     }
 
+
     public Type GetServiceType() => null;
     public Type GetModelType() => typeof(T);
 
     public bool IsScoped { get; set; }
+    
+    public void InitDefaults(TDbContext context) {
+        var modelType = GetModelType();
+
+        var methodInfo = modelType.GetMethod("Defaults", BindingFlags.Static | BindingFlags.Public);
+        if(methodInfo == null) return;
+        
+        var defaults = (List<T>)methodInfo.Invoke(null, new object[]{ context });
+        if(defaults == null || defaults.Count == 0) return;
+
+        var dbSet = _dbSetReference(context);
+        if(defaults.Count != dbSet.Count()) {
+            dbSet.AddRange(defaults);
+        }
+    }
 }

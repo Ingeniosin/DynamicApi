@@ -1,6 +1,7 @@
 using DynamicApi.Manager;
 using DynamicApi.Manager.Api;
 using DynamicApi.Manager.Api.Managers;
+using DynamicApi.Manager.Api.Managers.Service;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.HttpSys;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -28,7 +29,7 @@ coloca el conectionstring
 public static class DynamicApi {
     public static IServiceProvider ServiceProvider { get; set; }
     public static List<IApiManager> Routes { get; set; }
-    public static Dictionary<string, IApiManager> RoutesByType { get; set; } = new();
+    public static List<IApiManager> ServiceRoutes { get; set; }
 
 }
 
@@ -51,10 +52,9 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         _webApplicationBuilder = webApplicationBuilder;
         _initDefaultValues = initDefaultValues;
         _onPreStart = onPreStart;
-        Init();
     }
 
-    private void Init(){
+    public DynamicApi<TDbContext> Init(){
         _initTime = DateTime.Now;
         DynamicApi.Routes.ForEach(x => {
             var isGrouped = x is GroupedStaticApiManager;
@@ -78,10 +78,7 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
             }
         });
 
-        DynamicApi.RoutesByType = new Dictionary<string, IApiManager>();
-        DynamicApi.Routes.Where(x => x.GetModelType() != null && x.IsService).ToList().ForEach(x => {
-            DynamicApi.RoutesByType.Add(x.GetModelType()!.Name!, x);
-        });
+        DynamicApi.ServiceRoutes = DynamicApi.Routes.Where(x =>  x.IsService && x.GetModelType() != null).ToList();
         
         var expandoObjectConverter = new ExpandoObjectConverter();
         var customContractResolver = new CustomContractResolver();
@@ -128,7 +125,7 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
             x.LogTo(Console.WriteLine, new[] { RelationalEventId.CommandExecuted });
         });
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-
+        return this;
     }
 
     private WebApplication GetApp(){
@@ -149,7 +146,8 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
     }
 
 
-    public WebApplication Start(){
+    public WebApplication Start() {
+        Init();
         var app = GetApp();
         DynamicApi.ServiceProvider = app.Services;
         using var scope = app.Services.CreateScope();
@@ -161,7 +159,12 @@ public class DynamicApi<TDbContext> where TDbContext : DbContext{
         Console.WriteLine("Tablas creadas correctamente");
         DynamicApi.Routes.ForEach(x => x.Init(app));
         _initDefaultValues?.Invoke(applicationDbContext);
-        applicationDbContext.SaveChanges();
+        var typesManager = DynamicApi.Routes.Where(x => x is ITypeManager<TDbContext>);
+        foreach (var apiManager in typesManager) {
+            var typeManager = (ITypeManager<TDbContext>)apiManager;
+            typeManager.InitDefaults(applicationDbContext);
+            applicationDbContext.SaveChanges();
+        }
         Console.WriteLine($"¡Rutas creadas correctamente!");
         _onPreStart?.Invoke(app);
         Console.WriteLine($"¡Servidor iniciado correctamente en {DateTime.Now.Subtract(_initTime).TotalSeconds} segundos!");

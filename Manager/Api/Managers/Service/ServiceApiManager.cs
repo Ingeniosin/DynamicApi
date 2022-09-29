@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DynamicApi.Manager.Api.Managers.Service; 
 
-public class ServiceApiManager<T, TService, TDbContext> : IApiManager  where T : class where TService : ServiceModel<T> where TDbContext : DynamicDbContext {
+public class ServiceApiManager<T, TService, TDbContext> : IApiManager  where T : class where TService : ServiceModel<T, TDbContext> where TDbContext : DynamicDbContext {
 
     public string Route { get; set; }
     public bool IsService => true;
@@ -20,7 +20,7 @@ public class ServiceApiManager<T, TService, TDbContext> : IApiManager  where T :
     
     public void Init(WebApplication app) {
         using var scope = DynamicApi.ServiceProvider.CreateScope();
-        var serviceTemp = (ServiceModel<T>) scope.ServiceProvider.GetService(GetServiceType());
+        var serviceTemp = (ServiceModel<T, TDbContext>) scope.ServiceProvider.GetService(GetServiceType());
         if(serviceTemp == null) {
             throw new Exception("Service not found...");
         }
